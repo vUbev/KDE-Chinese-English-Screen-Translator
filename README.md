@@ -31,10 +31,12 @@ the dictionary (~4 MB) and the translation model (~100 MB); the pip packages are
 | **★ Save word** | Appends `WORD<TAB>DEFINITION` to `saved_words.txt` in the app folder, `~/.local/share/screen-translator/` (skips duplicates) |
 | Click elsewhere / Esc | Dismiss |
 
-Pinyin colours: tone 1 `#e30000`, tone 2 `#01b31c`, tone 3 `#150ff0`, tone 4 `#8800bf`, neutral `#777777`.
 
 Words with several readings (e.g. 行 háng / xíng) show every reading; the saved definition then
 looks like `[háng] row; line | [xíng] to walk; to go`.
+
+<img width="3823" height="1976" alt="image" src="https://github.com/user-attachments/assets/c503c191-f034-4f07-8f70-e1253358d19b" />
+<img width="1047" height="833" alt="image" src="https://github.com/user-attachments/assets/4c77caa9-6db6-4224-b0e6-812623f5b009" />
 
 ## Config
 
