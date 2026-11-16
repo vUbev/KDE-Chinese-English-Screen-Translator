@@ -33,7 +33,7 @@ the dictionary (~4 MB) and the translation model (~100 MB); the pip packages are
 
 Saved words are stored in `~/saved_words.txt`. They come pre-formatted for anki so you can just import directly. The "Example" is the original context you saved the word from.
 
-<img width="3798" height="1965" alt="image" src="https://github.com/user-attachments/assets/d6075ce5-a573-4cf7-94ea-9fdf07533252" />
+<img width="3782" height="1959" alt="image" src="https://github.com/user-attachments/assets/4f5a34c7-4b61-4454-840b-1af88d808672" />
 
 <img width="775" height="580" alt="image" src="https://github.com/user-attachments/assets/62b137c1-1bcc-4b51-afe0-7e96c194323c" />
 
