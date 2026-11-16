@@ -14,6 +14,7 @@ In the overlay:
     "Save word" ................. appends  WORD<TAB>DEFINITION  to your saved-words file
     click anywhere else / Esc ... dismiss
 """
+import math
 import os
 import socket
 import subprocess
@@ -107,7 +108,7 @@ import threading  # noqa: E402
 import time  # noqa: E402
 
 from PySide6.QtCore import QObject, QRectF, Qt, QTimer, Signal, Slot  # noqa: E402
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter, QPen, QPixmap  # noqa: E402
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter, QPen, QPixmap, QTextDocument  # noqa: E402
 from PySide6.QtNetwork import QLocalServer  # noqa: E402
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QVBoxLayout, QWidget  # noqa: E402
 
@@ -199,7 +200,16 @@ class Popup(QFrame):
         lay.addWidget(self.save, 0, Qt.AlignmentFlag.AlignRight)
 
     def set_content(self, html: str):
+        # QLabel under-reports the height of wrapped rich text (the last lines get cut off, e.g. the
+        # definition of the last character). Measure the text ourselves and give the label that height.
         self.label.setText(html)
+        w = self.width() - 32 - 2  # layout side margins + frame
+        doc = QTextDocument()
+        doc.setDefaultFont(self.label.font())
+        doc.setHtml(html)
+        doc.setTextWidth(w)
+        self.label.setFixedWidth(w)
+        self.label.setFixedHeight(int(math.ceil(doc.size().height())) + 8)
         self.layout().activate()
         self.adjustSize()
 
@@ -403,8 +413,7 @@ class Overlay(QWidget):
         self.popup.set_content(html)
         word = self.saved_word()
         self.popup.set_save_state(self.card["found"], core.is_saved(self.app.saved_path(), word))
-        if reposition or not self.popup.isVisible():
-            self.place_popup()
+        self.place_popup()  # always: the popup grows when the translation arrives and must stay on screen
         self.popup.show()
         self.popup.raise_()
 
