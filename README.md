@@ -30,11 +30,16 @@ the dictionary (~4 MB) and the translation model (~100 MB); the pip packages are
 | **★ Save word** | Appends `WORD<TAB>DEFINITION` to `~/saved_words.txt` in your home folder (skips duplicates) |
 | Click elsewhere / Esc | Dismiss |
 
-Pinyin colours (dark popup, used with a dark KDE theme): tone 1 `#ff8080`, tone 2 `#80ff80`, tone 3 `#8080ff`, tone 4 `#df80ff`, neutral `#c7c7c7`.
-With a light KDE theme the popup is light and uses darker colours: `#e30000`, `#01b31c`, `#150ff0`, `#8800bf`, `#777777`.
+<img width="3791" height="1968" alt="image" src="https://github.com/user-attachments/assets/cc27d182-2d3b-4865-a4f5-c1a4c1f0bacf" />
+
+<img width="3795" height="1964" alt="image" src="https://github.com/user-attachments/assets/5e7e9ff9-ff8b-4bca-b75d-ef417ed9cc17" />
+
+<img width="741" height="186" alt="image" src="https://github.com/user-attachments/assets/1d871691-1621-4dac-920e-3dc67e83901f" />
+
 
 Words with several readings (e.g. 行 háng / xíng) show every reading; the saved definition then
 looks like `[háng] row; line | [xíng] to walk; to go`.
+Saved words are stored in `~/saved_words.txt`
 
 ## Config
 
