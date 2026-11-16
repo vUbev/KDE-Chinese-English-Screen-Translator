@@ -30,16 +30,12 @@ the dictionary (~4 MB) and the translation model (~100 MB); the pip packages are
 | **★ Save word** | Appends `WORD<TAB>DEFINITION` to `~/saved_words.txt` in your home folder (skips duplicates) |
 | Click elsewhere / Esc | Dismiss |
 
-<img width="3791" height="1968" alt="image" src="https://github.com/user-attachments/assets/cc27d182-2d3b-4865-a4f5-c1a4c1f0bacf" />
 
-<img width="3795" height="1964" alt="image" src="https://github.com/user-attachments/assets/5e7e9ff9-ff8b-4bca-b75d-ef417ed9cc17" />
+Saved words are stored in `~/saved_words.txt`. They come pre-formatted for anki so you can just import directly. The "Example" is the original context you saved the word from.
 
-<img width="741" height="186" alt="image" src="https://github.com/user-attachments/assets/1d871691-1621-4dac-920e-3dc67e83901f" />
+<img width="3798" height="1965" alt="image" src="https://github.com/user-attachments/assets/d6075ce5-a573-4cf7-94ea-9fdf07533252" />
 
-
-Words with several readings (e.g. 行 háng / xíng) show every reading; the saved definition then
-looks like `[háng] row; line | [xíng] to walk; to go`.
-Saved words are stored in `~/saved_words.txt`
+<img width="775" height="580" alt="image" src="https://github.com/user-attachments/assets/62b137c1-1bcc-4b51-afe0-7e96c194323c" />
 
 ## Config
 
