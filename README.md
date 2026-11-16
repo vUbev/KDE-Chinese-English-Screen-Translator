@@ -17,8 +17,7 @@ Installs into `~/.local/share/screen-translator` (own Python venv, no layering, 
 Needs `python3` and Spectacle (both ship with Bazzite KDE). The first run downloads
 the dictionary (~4 MB) and the translation model (~100 MB); the pip packages are a few hundred MB.
 
-`./install.sh uninstall` removes it again. Your saved words are not deleted: they are moved to
-`~/screen-translator-saved_words.txt`.
+`./install.sh uninstall` removes it again. Your saved words (`~/saved_words.txt`) are not touched.
 
 ## Using it
 
@@ -28,15 +27,14 @@ the dictionary (~4 MB) and the translation model (~100 MB); the pip packages are
 | Click a highlighted word | Popup: context translation, dictionary entry (simplified \| traditional, coloured pinyin), per-character components |
 | Mouse wheel up/down, or **→ / ←** | Make the selected word one character longer/shorter (e.g. 环形 → 环形路 → 环形路口) |
 | **Ctrl/Shift + wheel**, or **Shift + ← / →** | Same, for the left edge |
-| **★ Save word** | Appends `WORD<TAB>DEFINITION` to `saved_words.txt` in the app folder, `~/.local/share/screen-translator/` (skips duplicates) |
+| **★ Save word** | Appends `WORD<TAB>DEFINITION` to `~/saved_words.txt` in your home folder (skips duplicates) |
 | Click elsewhere / Esc | Dismiss |
 
+Pinyin colours (dark popup, used with a dark KDE theme): tone 1 `#ff8080`, tone 2 `#80ff80`, tone 3 `#8080ff`, tone 4 `#df80ff`, neutral `#c7c7c7`.
+With a light KDE theme the popup is light and uses darker colours: `#e30000`, `#01b31c`, `#150ff0`, `#8800bf`, `#777777`.
 
 Words with several readings (e.g. 行 háng / xíng) show every reading; the saved definition then
 looks like `[háng] row; line | [xíng] to walk; to go`.
-
-<img width="3823" height="1976" alt="image" src="https://github.com/user-attachments/assets/c503c191-f034-4f07-8f70-e1253358d19b" />
-<img width="1047" height="833" alt="image" src="https://github.com/user-attachments/assets/4c77caa9-6db6-4224-b0e6-812623f5b009" />
 
 ## Config
 
@@ -44,11 +42,13 @@ looks like `[háng] row; line | [xíng] to walk; to go`.
 
 ```json
 {
-  "saved_words_file": "/home/you/.local/share/screen-translator/saved_words.txt",
+  "saved_words_file": "/home/you/saved_words.txt",
   "translator": "argos",        // "none" = dictionary only
   "min_confidence": 0.5,
   "only_chinese": true,
-  "tone_colors": { "1": "#e30000", "2": "#01b31c", "3": "#150ff0", "4": "#8800bf", "5": "#777777" }
+  "theme": "auto",              // "auto" follows KDE, or force "dark" / "light"
+  "tone_colors_dark":  { "1": "#ff8080", "2": "#80ff80", "3": "#8080ff", "4": "#df80ff", "5": "#c7c7c7" },
+  "tone_colors_light": { "1": "#e30000", "2": "#01b31c", "3": "#150ff0", "4": "#8800bf", "5": "#777777" }
 }
 ```
 

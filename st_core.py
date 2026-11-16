@@ -27,23 +27,76 @@ RUNTIME_DIR = Path(os.environ.get("XDG_RUNTIME_DIR", tempfile.gettempdir()))
 SOCKET_PATH = str(RUNTIME_DIR / f"{APP}.sock")
 MODEL_DIR = DATA_DIR / "models" / "zh_en"
 
-TONE_COLORS = {
-    1: "#ff8080",  # first tone
-    2: "#80ff80",  # second tone
-    3: "#8080ff",  # third tone
-    4: "#df80ff",  # fourth tone
-    5: "#c7c7c7",  # fifth / neutral tone
+TONE_COLORS_LIGHT = {  # for light backgrounds (darker, saturated colours stay readable)
+    1: "#e30000",  # first tone
+    2: "#01b31c",  # second tone
+    3: "#150ff0",  # third tone
+    4: "#8800bf",  # fourth tone
+    5: "#777777",  # fifth / neutral tone
 }
+TONE_COLORS_DARK = {  # for dark backgrounds
+    1: "#ff8080",
+    2: "#80ff80",
+    3: "#8080ff",
+    4: "#df80ff",
+    5: "#c7c7c7",
+}
+
+THEMES = {
+    "dark": dict(bg="#1b1c23", border="#3b3e4d", text="#f0f0f5", muted="#8b90a0", body="#d4d7e0",
+                 btn_bg="#2d3040", btn_border="#444860", btn_hover="#3a3e54",
+                 btn_off_bg="#24262f", btn_off_text="#8b90a0"),
+    "light": dict(bg="#fbfbfd", border="#c9ccd6", text="#1c1d24", muted="#6b7080", body="#3a3d4a",
+                  btn_bg="#eceef4", btn_border="#c3c7d4", btn_hover="#dfe2ec",
+                  btn_off_bg="#f1f2f6", btn_off_text="#9a9eac"),
+}
+
+
+def get_theme(cfg: dict, dark: bool) -> dict:
+    t = dict(THEMES["dark" if dark else "light"])
+    t["tones"] = cfg["tone_colors_dark" if dark else "tone_colors_light"]
+    return t
+
+
+def kde_prefers_dark() -> bool | None:
+    """Read KDE's colour scheme from ~/.config/kdeglobals. None = could not tell."""
+    path = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "kdeglobals"
+    try:
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return None
+    section = bg = scheme = None
+    for line in lines:
+        line = line.strip()
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1]
+        elif "=" in line:
+            k, v = line.split("=", 1)
+            if section == "Colors:Window" and k == "BackgroundNormal":
+                bg = v
+            elif section == "General" and k == "ColorScheme":
+                scheme = v
+    if bg:
+        try:
+            r, g, b = [int(x) for x in bg.split(",")[:3]]
+            return (0.299 * r + 0.587 * g + 0.114 * b) < 128
+        except ValueError:
+            pass
+    if scheme:
+        return "dark" in scheme.lower()
+    return None
 
 DEFAULT_CONFIG = {
     # Where "Save word" appends lines of:  WORD<TAB>DEFINITION
-    "saved_words_file": str(DATA_DIR / "saved_words.txt"),
+    "saved_words_file": str(HOME / "saved_words.txt"),
     "cedict_path": str(DATA_DIR / "cedict_ts.u8"),
     # "argos" = offline translation model, "none" = dictionary only
     "translator": "argos",
     "min_confidence": 0.5,
     "only_chinese": True,  # only highlight OCR lines that contain Chinese
-    "tone_colors": TONE_COLORS,
+    "theme": "auto",       # "auto" (follow KDE), "dark" or "light"
+    "tone_colors_dark": TONE_COLORS_DARK,
+    "tone_colors_light": TONE_COLORS_LIGHT,
 }
 
 log = logging.getLogger(APP)
@@ -54,8 +107,10 @@ def load_config() -> dict:
     try:
         user = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
         for k, v in user.items():
-            if k == "tone_colors" and isinstance(v, dict):
-                cfg["tone_colors"].update({int(a): b for a, b in v.items()})
+            if k in ("tone_colors_dark", "tone_colors_light") and isinstance(v, dict):
+                cfg[k].update({int(a): b for a, b in v.items()})
+            elif k == "tone_colors" and isinstance(v, dict):  # old config format -> light palette
+                cfg["tone_colors_light"].update({int(a): b for a, b in v.items()})
             else:
                 cfg[k] = v
     except FileNotFoundError:
@@ -66,7 +121,9 @@ def load_config() -> dict:
             pass
     except Exception as ex:  # broken JSON etc: keep defaults
         log.warning("could not read %s: %s", CONFIG_FILE, ex)
-    cfg["tone_colors"] = {int(k): v for k, v in cfg["tone_colors"].items()}
+    cfg.pop("tone_colors", None)
+    for key in ("tone_colors_dark", "tone_colors_light"):
+        cfg[key] = {int(k): v for k, v in cfg[key].items()}
     return cfg
 
 
@@ -238,8 +295,8 @@ def save_definition(card: dict) -> str:
     return " | ".join(parts)
 
 
-def card_html(card: dict, translation: str | None, colors: dict) -> str:
-    muted = "#8b90a0"
+def card_html(card: dict, translation: str | None, theme: dict) -> str:
+    muted, body, colors = theme["muted"], theme["body"], theme["tones"]
     h = lambda t: f'<p style="margin:12px 0 3px 0;font-size:11px;color:{muted}"><b>{t}</b></p>'
     out = []
     if translation is not None:
@@ -255,7 +312,7 @@ def card_html(card: dict, translation: str | None, colors: dict) -> str:
             top = "2px" if i == 0 else "10px"
             out.append(f'<p style="margin:{top} 0 2px 0;font-size:24px">{head}</p>')
             out.append(f'<p style="margin:0 0 3px 0;font-size:16px">{pinyin_html(e["pinyin"], colors)}</p>')
-            out.append(f'<p style="margin:0;font-size:14px;color:#d4d7e0">{html.escape("; ".join(e["defs"]))}</p>')
+            out.append(f'<p style="margin:0;font-size:14px;color:{body}">{html.escape("; ".join(e["defs"]))}</p>')
     else:
         out.append(f'<p style="margin:2px 0;font-size:24px">{html.escape(card["text"])}</p>')
         out.append(f'<p style="margin:0;font-size:13px;color:{muted}">No dictionary entry for this selection. '
@@ -267,7 +324,7 @@ def card_html(card: dict, translation: str | None, colors: dict) -> str:
             out.append(f'<p style="margin:4px 0 0 0;font-size:18px">{html.escape(c["simp"])}{trad} '
                        f'<span style="font-size:15px">{pinyin_html(c["pinyin"], colors) if c["pinyin"] else ""}</span></p>')
             if c["gloss"]:
-                out.append(f'<p style="margin:0;font-size:13px;color:#d4d7e0">{html.escape(c["gloss"])}</p>')
+                out.append(f'<p style="margin:0;font-size:13px;color:{body}">{html.escape(c["gloss"])}</p>')
     return "".join(out)
 
 

@@ -171,18 +171,19 @@ class Signals(QObject):
 
 
 class Popup(QFrame):
-    def __init__(self, parent, width):
+    def __init__(self, parent, width, theme):
         super().__init__(parent)
         self.setObjectName("popup")
         self.setAttribute(Qt.WidgetAttribute.WA_NoMousePropagation)
         self.setFixedWidth(width)
-        self.setStyleSheet("""
-            #popup { background-color: #1b1c23; border: 1px solid #3b3e4d; border-radius: 12px; }
-            QLabel { color: #f0f0f5; background: transparent; }
-            QPushButton { background: #2d3040; color: #f0f0f5; border: 1px solid #444860;
-                          border-radius: 8px; padding: 6px 14px; }
-            QPushButton:hover { background: #3a3e54; }
-            QPushButton:disabled { color: #8b90a0; background: #24262f; }
+        t = theme
+        self.setStyleSheet(f"""
+            #popup {{ background-color: {t['bg']}; border: 1px solid {t['border']}; border-radius: 12px; }}
+            QLabel {{ color: {t['text']}; background: transparent; }}
+            QPushButton {{ background: {t['btn_bg']}; color: {t['text']}; border: 1px solid {t['btn_border']};
+                          border-radius: 8px; padding: 6px 14px; }}
+            QPushButton:hover {{ background: {t['btn_hover']}; }}
+            QPushButton:disabled {{ color: {t['btn_off_text']}; background: {t['btn_off_bg']}; }}
         """)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(16, 14, 16, 12)
@@ -237,7 +238,8 @@ class Overlay(QWidget):
         if screen is not None:
             self.setScreen(screen)
             self.setGeometry(screen.geometry())
-        self.popup = Popup(self, 420)
+        self.theme = app.theme()
+        self.popup = Popup(self, 420, self.theme)
         self.popup.hide()
         self.popup.save.clicked.connect(self.save_current)
         app.sig.translated.connect(self.on_translated)
@@ -397,7 +399,7 @@ class Overlay(QWidget):
         tr = self.app.tcache.get(sentence)
         if tr is None:
             tr = "Translating…" if self.app.cfg["translator"] == "argos" else None
-        html = core.card_html(self.card, tr, self.app.cfg["tone_colors"])
+        html = core.card_html(self.card, tr, self.theme)
         self.popup.set_content(html)
         word = self.saved_word()
         self.popup.set_save_state(self.card["found"], core.is_saved(self.app.saved_path(), word))
@@ -474,6 +476,26 @@ class App(QObject):
 
     def saved_path(self) -> str:
         return os.path.expanduser(self.cfg["saved_words_file"])
+
+    def is_dark(self) -> bool:
+        mode = str(self.cfg.get("theme", "auto")).lower()
+        if mode in ("dark", "light"):
+            return mode == "dark"
+        kde = core.kde_prefers_dark()  # re-read each time, so switching KDE theme takes effect at once
+        if kde is not None:
+            return kde
+        try:
+            scheme = QGuiApplication.styleHints().colorScheme()
+            if scheme == Qt.ColorScheme.Dark:
+                return True
+            if scheme == Qt.ColorScheme.Light:
+                return False
+        except Exception:
+            pass
+        return QGuiApplication.palette().window().color().lightness() < 128
+
+    def theme(self) -> dict:
+        return core.get_theme(self.cfg, self.is_dark())
 
     # ---- trigger ------------------------------------------------------
     @Slot()

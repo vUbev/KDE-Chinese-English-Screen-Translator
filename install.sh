@@ -142,6 +142,6 @@ If $HOTKEY does nothing, add the shortcut by hand (30 seconds):
 (If KDE says the key is already taken, pick another one - e.g. HOTKEY=Meta+Q ./install.sh)
 
 Config:       ~/.config/$APP/config.json     (saved-words file path, tone colours, ...)
-Saved words:  $DATA/saved_words.txt   (WORD<TAB>DEFINITION)
+Saved words:  ~/saved_words.txt              (WORD<TAB>DEFINITION)
 Log:          $DATA/screen-translator.log
 EOF
