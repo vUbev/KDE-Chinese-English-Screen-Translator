@@ -82,7 +82,7 @@ def cmd_lookup(args) -> int:
             print("   " + "; ".join(e["defs"]))
         for c in card["components"]:
             print(f"  {c['simp']} ({c['trad']}) {core.pinyin_plain(c['pinyin'])}  {c['gloss']}")
-        print("saved line:", repr(f"{word}\t{core.save_definition(card)}"))
+        print("saved field:", core.format_card_field(card, ""))
     return 0
 
 
@@ -431,7 +431,8 @@ class Overlay(QWidget):
     def save_current(self):
         if not self.card or not self.card["found"]:
             return
-        res = core.save_word(self.app.saved_path(), self.saved_word(), core.save_definition(self.card))
+        field = core.format_card_field(self.card, self.ctx.sentence if self.ctx else "")
+        res = core.save_word(self.app.saved_path(), self.saved_word(), field)
         log.info("save %s -> %s", self.saved_word(), res)
         self.popup.set_save_state(True, True)
 

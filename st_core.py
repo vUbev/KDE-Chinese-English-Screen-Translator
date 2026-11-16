@@ -7,6 +7,7 @@ handling, sentence/context extraction, offline translation and the
 """
 from __future__ import annotations
 
+import csv
 import html
 import json
 import logging
@@ -184,6 +185,16 @@ def pinyin_plain(pin: str) -> str:
     return " ".join(t for t, _ in pinyin_list(pin))
 
 
+def pinyin_joined(pin: str) -> str:
+    """Pinyin written as one word, like 'zhǔyǔ' (an apostrophe where needed: 'xī'ān')."""
+    out = ""
+    for text, _ in pinyin_list(pin):
+        if out and text[:1].lower() in "aeoāáǎàēéěèōóǒò":
+            out += "'"
+        out += text
+    return out
+
+
 def pinyin_html(pin: str, colors: dict) -> str:
     return " ".join(
         f'<span style="color:{colors.get(tone, colors[5])}">{html.escape(text)}</span>'
@@ -218,6 +229,17 @@ def clean_def(d: str) -> str:
     d = _PY_BRACKET.sub(
         lambda m: "[" + " ".join(mark_syllable(s)[0] for s in m.group(1).split()) + "]", d)
     return d
+
+
+_JUNK_SENSE = re.compile(r"^(abbr\. |abbreviation |used in |surname |variant of |old variant of |erhua variant|"
+                         r"see |see also |also written |Japanese variant|archaic variant|CL:|Taiwan pr\.|also pr\.)",
+                         re.I)
+
+
+def good_defs(entry: Entry, limit: int = 3) -> list[str]:
+    """The meanings worth showing for a single character: skips cross-references,
+    abbreviations ("abbr. for Israel"), "used in 家伙" and surname-only senses."""
+    return [clean_def(d) for d in entry.defs if not _JUNK_SENSE.match(d)][:limit]
 
 
 def display_defs(entry: Entry, limit: int = 8) -> list[str]:
@@ -259,15 +281,25 @@ class Dictionary:
             if not is_cjk(ch):
                 continue
             cands = [e for e in self.index.get(ch, []) if len(e.simp) == 1]
-            want = use_syl[i].lower() if use_syl else None
-            pick = None
-            if want:
-                pick = next((e for e in cands if e.pinyin.lower() == want and not e.weak), None)
-            pick = pick or next((e for e in cands if not e.weak), None) or (cands[0] if cands else None)
+            syl = use_syl[i] if use_syl else None
+
+            def rank(e):
+                # 1) an entry with a real meaning beats "abbr. for ..." / "used in ..." / "surname ..."
+                # 2) then prefer the reading this word uses, 3) then the same capitalisation (xi vs Xi)
+                return (0 if good_defs(e) else 1,
+                        0 if syl and e.pinyin.lower() == syl.lower() else 1,
+                        0 if syl and e.pinyin == syl else 1)
+
+            pick = min(cands, key=rank) if cands else None  # min() keeps CC-CEDICT order on ties
             t = trad[i] if trad and len(trad) == len(simp) else (pick.trad if pick else ch)
-            pin = use_syl[i] if use_syl else (pick.pinyin if pick else "")
-            defs = [d for d in (display_defs(pick, 3) if pick else []) if not d.startswith("variant")]
-            out.append({"simp": ch, "trad": t, "pinyin": pin, "gloss": "; ".join(defs[:2])})
+            pin = syl if syl else (pick.pinyin if pick else "")
+            defs = (good_defs(pick) or display_defs(pick, 3)) if pick else []
+            gloss = ""
+            for dd in defs[:3]:  # up to 3 meanings, but keep the line short
+                if gloss and len(gloss) + len(dd) > 80:
+                    break
+                gloss = f"{gloss}; {dd}" if gloss else dd
+            out.append({"simp": ch, "trad": t, "pinyin": pin, "gloss": gloss})
         return out
 
     def build_card(self, text: str) -> dict:
@@ -332,32 +364,101 @@ def card_html(card: dict, translation: str | None, theme: dict) -> str:
 # saved words file:  WORD <TAB> DEFINITION
 # --------------------------------------------------------------------------
 def _one_line(s: str) -> str:
-    return re.sub(r"[\t\r\n]+", " ", s).strip()
+    return re.sub(r"\s+", " ", s).strip()
+
+
+CARD_STYLE = (
+    "<style>.w9{--box:#f8fafc;--text:#1a202c;--muted:#5b6678;--accent:#2b82d9;--head:#2a69ac;--line:#dfe5ee;"
+    "--nb:#eff7ff;--nt:#0f4c75;color:var(--text);font-family:-apple-system,Roboto,'Noto Sans SC',sans-serif;"
+    "text-align:center;font-size:10px}"
+    ".night_mode .w9,.nightMode .w9,.w9.night_mode,.w9.nightMode{--box:#14171c;--text:#f1f3f6;--muted:#9aa5b5;"
+    "--accent:#5ab0ff;--head:#6fb6f5;--line:#2a303a;--nb:#0e2236;--nt:#bfe0ff}"
+    ".w9 .reading{background:var(--box);border:1px solid var(--line);border-radius:8px;padding:8px}"
+    ".w9 .py{display:block;color:var(--accent);font-size:17px;font-weight:600}"
+    ".w9 .en{display:block;color:var(--muted);font-size:13px;font-weight:600;margin-top:2px}"
+    ".w9 .label{text-align:left;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;"
+    "color:var(--head);border-bottom:1px solid var(--line);padding-bottom:4px;margin:14px 0 6px}"
+    ".w9 .ex{background:var(--box);border:1px solid var(--line);border-radius:7px;padding:7px 8px;text-align:left}"
+    ".w9 .zh{font-size:16px;line-height:1.4}"
+    ".w9 .item{display:flex;align-items:center;gap:10px;text-align:left;background:var(--box);"
+    "border:1px solid var(--line);border-radius:7px;padding:7px 8px;margin-bottom:5px}"
+    ".w9 .item .w{flex:1;font-size:17px}.w9 .item .r{flex:1}"
+    ".w9 .item .p{display:block;color:var(--accent);font-size:11px;font-weight:600}"
+    ".w9 .item .m{display:block;color:var(--muted);font-size:10px;margin-top:1px}</style>"
+)
+ANKI_HEADER = "#separator:tab\n#html:true\n"
+
+
+def format_card_field(card: dict, context: str = "") -> str:
+    """Second column of a saved line: one single-line HTML block (for Anki, 'Allow HTML in fields'):
+
+    <style>...</style><div class="w9"><div class="reading"><span class="py">pinyin</span>
+    <span class="en">definition</span></div><div class="label">Example</div>
+    <div class="ex"><div class="zh">original sentence</div></div></div>
+
+    A word with several readings gets one "reading" div per reading. No line breaks are ever written,
+    so every saved word stays on exactly one line of the file.
+    """
+    e = lambda s: html.escape(_one_line(s), quote=False)
+    parts = [CARD_STYLE, '<div class="w9">']
+    for en in card["entries"]:
+        parts.append(f'<div class="reading"><span class="py">{e(pinyin_joined(en["pinyin"]))}</span>'
+                     f'<span class="en">{e("; ".join(en["defs"]))}</span></div>')
+    if _one_line(context):
+        parts.append(f'<div class="label">Example</div><div class="ex"><div class="zh">{e(context)}</div></div>')
+    parts.append("</div>")
+    return "".join(parts)
+
+
+def _read_rows(path):
+    """Rows of the saved-words file (a field may be "quoted", with "" for a quote mark)."""
+    with open(path, encoding="utf-8", newline="") as f:
+        yield from csv.reader(f, delimiter="\t", quotechar='"')
 
 
 def is_saved(path: str | Path, word: str) -> bool:
     try:
-        with open(path, encoding="utf-8") as f:
-            return any(line.split("\t", 1)[0] == word for line in f)
+        return any(row and row[0] == word for row in _read_rows(path))
     except FileNotFoundError:
+        return False
+    except csv.Error:
         return False
 
 
-def save_word(path: str | Path, word: str, definition: str) -> str:
-    """Append 'word<TAB>definition'. Returns 'saved' or 'exists'."""
+def ensure_header(path: Path) -> None:
+    """Make the file start with Anki's '#separator:tab' / '#html:true' lines (adds them if missing)."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        text = ""
+    if text.startswith(ANKI_HEADER):
+        return
+    lines = text.splitlines(keepends=True)
+    while lines and re.match(r"#(separator|html)\b", lines[0]):  # drop an old/partial header
+        lines.pop(0)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(ANKI_HEADER + "".join(lines), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def save_word(path: str | Path, word: str, field: str) -> str:
+    """Append  word<TAB>field  as one line (the field is quoted, with " written as "" - the
+    format Anki imports). Returns 'saved' or 'exists'."""
     path = Path(path).expanduser()
     if is_saved(path, word):
         return "exists"
     path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_header(path)
     needs_nl = False
     if path.exists() and path.stat().st_size > 0:
         with open(path, "rb") as f:
             f.seek(-1, os.SEEK_END)
             needs_nl = f.read(1) != b"\n"
-    with open(path, "a", encoding="utf-8") as f:
+    with open(path, "a", encoding="utf-8", newline="") as f:
         if needs_nl:
             f.write("\n")
-        f.write(f"{_one_line(word)}\t{_one_line(definition)}\n")
+        csv.writer(f, delimiter="\t", quotechar='"', quoting=csv.QUOTE_MINIMAL,
+                   lineterminator="\n").writerow([_one_line(word), _one_line(field)])
     return "saved"
 
 
